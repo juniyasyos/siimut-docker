@@ -95,7 +95,7 @@ if [[ -f .env ]]; then
   # Derive DB values from envs provided by compose
   DB_CONNECTION_DEFAULT="${DB_CONNECTION:-pgsql}"
   DB_HOST_DEFAULT="${DB_HOST:-db}"
-  DB_PORT_DEFAULT="${DB_PORT:-5432}"
+  DB_PORT_DEFAULT="${DB_PORT:-5423}"
   DB_NAME_DEFAULT="${DB_DATABASE:-${POSTGRES_DB:-laravel}}"
   DB_USER_DEFAULT="${DB_USERNAME:-${POSTGRES_USER:-laravel}}"
   DB_PASS_DEFAULT="${DB_PASSWORD:-${POSTGRES_PASSWORD:-laravel}}"
@@ -136,7 +136,7 @@ if [[ "${LARAVEL_WAIT_FOR_DB}" == "true" ]]; then
     php -d detect_unicode=0 -r '
       $c = getenv("DB_CONNECTION") ?: "";
       $h = getenv("DB_HOST") ?: "";
-      $p = getenv("DB_PORT") ?: ($c === "mysql" ? 3306 : 5432);
+      $p = getenv("DB_PORT") ?: ($c === "mysql" ? 3306 : 5423);
       $d = getenv("DB_DATABASE") ?: "";
       $u = getenv("DB_USERNAME") ?: "";
       $w = getenv("DB_PASSWORD") ?: "";

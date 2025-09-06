@@ -97,7 +97,7 @@ echo "[5/7] Build & up…"
 if [[ "$REBUILD" == true ]]; then
   $COMPOSE_BIN build --progress=plain
 fi
-$COMPOSE_BIN up -d
+$COMPOSE_BIN up -d --remove-orphans
 
 echo "[6/7] Inisialisasi Laravel…"
 # Tunggu service APP siap
@@ -120,20 +120,20 @@ fi
 # Pastikan .env ada
 $COMPOSE_BIN exec -T "$SERVICE_APP" php -r 'file_exists(".env") || copy(".env.example", ".env");' || true
 
-# Bersih cache config (hindari MissingAppKey akibat cache lama)
-$COMPOSE_BIN exec -T "$SERVICE_APP" sh -lc 'rm -f bootstrap/cache/config.php bootstrap/cache/services.php || true'
-$COMPOSE_BIN exec -T "$SERVICE_APP" php artisan optimize:clear || true
-
-# Sinkron DB config
+# Sinkron DB config lebih awal (sebelum clear cache yang bisa akses DB)
 $COMPOSE_BIN exec -T "$SERVICE_APP" /bin/sh -lc 'set -e; \
   set_kv() { k="$1"; v="$2"; if grep -qE "^${k}=.*$" .env; then sed -i "s#^${k}=.*#${k}=${v}#" .env; else echo "${k}=${v}" >> .env; fi; }; \
   set_kv DB_CONNECTION pgsql; \
   set_kv DB_HOST '"$SERVICE_DB"'; \
-  set_kv DB_PORT 5432; \
+  set_kv DB_PORT 5423; \
   set_kv DB_DATABASE "${DB_DATABASE:-${POSTGRES_DB:-laravel}}"; \
   set_kv DB_USERNAME "${DB_USERNAME:-${POSTGRES_USER:-laravel}}"; \
   set_kv DB_PASSWORD "${DB_PASSWORD:-${POSTGRES_PASSWORD:-laravel}}"; \
 '
+
+# Bersih cache config (hindari MissingAppKey/akses DB dengan host lama)
+$COMPOSE_BIN exec -T "$SERVICE_APP" sh -lc 'rm -f bootstrap/cache/config.php bootstrap/cache/services.php || true'
+$COMPOSE_BIN exec -T "$SERVICE_APP" sh -lc 'CACHE_DRIVER=file php artisan optimize:clear || true'
 
 # APP_KEY + migrasi + storage link
 $COMPOSE_BIN exec -T "$SERVICE_APP" php artisan key:generate --force || true
@@ -141,6 +141,8 @@ $COMPOSE_BIN exec -T "$SERVICE_APP" php -r 'if(!preg_match("/^APP_KEY=.+$/m", fi
 
 $COMPOSE_BIN exec -T "$SERVICE_APP" php artisan migrate --force || true
 $COMPOSE_BIN exec -T "$SERVICE_APP" php artisan storage:link || true
+# Izinkan git bekerja pada bind mount (hindari "dubious ownership")
+$COMPOSE_BIN exec -T "$SERVICE_APP" git config --global --add safe.directory /var/www/html || true
 $COMPOSE_BIN exec -T "$SERVICE_APP" composer run setup || true
 
 # ---- Bagian Node/npm (sekali jalan) ----
@@ -148,6 +150,8 @@ if [[ "$NODE_BUILD" == "true" ]]; then
   echo "[6b/7] Build frontend (npm)…"
   # Gunakan `run --rm` agar tidak butuh service node selalu hidup.
   if $COMPOSE_BIN config --services | grep -qx "$SERVICE_NODE"; then
+    # Pastikan direktori build bisa ditulis oleh user Node
+    $COMPOSE_BIN run --rm "$SERVICE_NODE" /bin/sh -lc 'mkdir -p public/build/assets && chmod -R 0777 public/build' || true
     $COMPOSE_BIN run --rm "$SERVICE_NODE" npm ci || $COMPOSE_BIN run --rm "$SERVICE_NODE" npm install
     $COMPOSE_BIN run --rm "$SERVICE_NODE" npm run build
     if [[ "$CLEAN_NODE_MODULES" == "true" ]]; then
