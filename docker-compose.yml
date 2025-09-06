@@ -1,0 +1,69 @@
+services:
+  web:
+    image: caddy:2-alpine
+    container_name: siimut-web
+    ports:
+      - "8080:8080"
+      # - "443:443"   # aktifkan kalau mau TLS lokal (Caddy otomatis)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./site/siimut-application:/var/www/html
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  app:
+    build:
+      context: ./site/siimut-application
+      dockerfile: ../../docker/php/Dockerfile  
+    container_name: siimut-app
+    working_dir: /var/www/html
+    user: root
+    volumes:
+      - ./site/siimut-application:/var/www/html
+      # Pisahkan vendor ke named volume agar tidak berada di bind mount Windows
+      - vendor_data:/var/www/html/vendor
+    env_file:
+      - .env.docker
+    environment:
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: siimut-db
+    env_file:
+      - .env.docker
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-${DB_DATABASE:-laravel}}
+      POSTGRES_USER: ${POSTGRES_USER:-${DB_USERNAME:-laravel}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${DB_PASSWORD:-laravel}}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  node:
+    image: node:20-alpine
+    container_name: siimut-node
+    working_dir: /var/www/html
+    user: "1000:1000"
+    volumes:
+      - ./site/siimut-application:/var/www/html
+    command: tail -f /dev/null
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pg_data:
+  vendor_data:
