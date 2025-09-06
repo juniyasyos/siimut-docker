@@ -52,8 +52,8 @@ fi
 
 echo "[2/7] Clone/update Siimut backend ke ./site/siimut-application…"
 mkdir -p "$PROJECT_ROOT/site"
-chmod +x "$PROJECT_ROOT/scripts/clone_tamasuma_backend.sh"
-"$PROJECT_ROOT/scripts/clone_tamasuma_backend.sh" --dir "$PROJECT_ROOT/site"
+chmod +x "$PROJECT_ROOT/scripts/clone_siimut_application"
+"$PROJECT_ROOT/scripts/clone_siimut_application" --dir "$PROJECT_ROOT/site"
 
 echo "[3/7] Siapkan .env.docker…"
 if [[ ! -f "$PROJECT_ROOT/.env.docker" ]]; then

@@ -13,10 +13,10 @@ set -euo pipefail
 #   - Safe update: refuses to modify dirty working tree unless `--hard-update`
 #
 # Usage examples:
-#   scripts/clone_tamasuma_backend.sh
-#   scripts/clone_tamasuma_backend.sh --dir /var/www/site
-#   scripts/clone_tamasuma_backend.sh --ssh --branch main --shallow
-#   scripts/clone_tamasuma_backend.sh --hard-update
+#   scripts/clone_siimut_application
+#   scripts/clone_siimut_application --dir /var/www/site
+#   scripts/clone_siimut_application --ssh --branch main --shallow
+#   scripts/clone_siimut_application --hard-update
 
 REPO_PATH="juniyasyos/siimut-application"
 HTTPS_URL="https://github.com/${REPO_PATH}.git"
