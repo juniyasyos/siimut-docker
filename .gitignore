@@ -1,0 +1,7 @@
+site/
+.DS_Store
+node_modules/
+vendor/
+*.log
+*.tmp
+*.swp

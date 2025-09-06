@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: siimut-db-postgres
+    env_file:
+      - .env.docker
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-${DB_DATABASE:-laravel}}
+      POSTGRES_USER: ${POSTGRES_USER:-${DB_USERNAME:-laravel}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${DB_PASSWORD:-laravel}}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5423:5432"  # host:container
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:

@@ -30,30 +30,11 @@ services:
     environment:
       PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
     depends_on:
-      - db-postgress
+      - db
     restart: unless-stopped
-
-  db-postgress:
-    image: postgres:16-alpine
-    container_name: siimut-db-postgress
-    env_file:
-      - .env.docker
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-${DB_DATABASE:-laravel}}
-      POSTGRES_USER: ${POSTGRES_USER:-${DB_USERNAME:-laravel}}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${DB_PASSWORD:-laravel}}
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    ports:
-      - "5423:5423"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
   
   node:
-    image: node:20-alpine
+    image: node:alpine
     container_name: siimut-node
     working_dir: /var/www/html
     user: "1000:1000"
@@ -65,5 +46,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-  pg_data:
   vendor_data:
