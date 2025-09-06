@@ -18,7 +18,7 @@ set -euo pipefail
 #   scripts/clone_siimut_application --ssh --branch main --shallow
 #   scripts/clone_siimut_application --hard-update
 
-REPO_PATH="juniyasyos/siimut-application"
+REPO_PATH="juniyasyos/si-imut"
 HTTPS_URL="https://github.com/${REPO_PATH}.git"
 SSH_URL="git@github.com:${REPO_PATH}.git"
 

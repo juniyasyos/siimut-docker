@@ -27,7 +27,7 @@ Aplikasi akan tersedia di: http://localhost:8080
 ## Struktur Layanan
 - `web` (Caddy) — reverse proxy + static, listen port `8080`
 - `app` (PHP-FPM) — menjalankan Laravel
-- `db` (Postgres 16) — database
+- `db-postgress` (Postgres 16) — database
 
 ## Variabel Lingkungan Compose
 Isi di file `.env.docker` (dibaca oleh `docker-compose.yml`):
@@ -45,6 +45,7 @@ Contoh: lihat `.env.docker.example`.
 ## Catatan
 - Volume kode: `./site/siimut-application:/var/www/html`
 - Build context `app`: `./site/siimut-application` memakai `docker/php/Dockerfile`
+- DB service name: `db-postgress` (container: `siimut-db-postgress`)
 - Caddy melayani dokumen root `public/` dan meneruskan PHP ke `app:9000`
 
 ## Troubleshooting Cepat

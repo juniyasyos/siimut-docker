@@ -7,7 +7,7 @@ set -euo pipefail
 COMPOSE_BIN="${COMPOSE_BIN:-docker compose}"
 SERVICE_APP="${SERVICE_APP:-app}"      # contoh: laravel-app
 SERVICE_WEB="${SERVICE_WEB:-web}"      # contoh: laravel-web
-SERVICE_DB="${SERVICE_DB:-db}"         # contoh: laravel-db
+SERVICE_DB="${SERVICE_DB:-db-postgress}"         # contoh: siimut-db-postgress
 SERVICE_NODE="${SERVICE_NODE:-node}"   # contoh: siimut-node (nama service, bukan container)
 NODE_BUILD="${NODE_BUILD:-true}"       # set false untuk skip npm build
 CLEAN_NODE_MODULES="${CLEAN_NODE_MODULES:-false}" # true untuk rm -rf node_modules setelah build
@@ -52,8 +52,8 @@ fi
 
 echo "[2/7] Clone/update Siimut backend ke ./site/siimut-application…"
 mkdir -p "$PROJECT_ROOT/site"
-chmod +x "$PROJECT_ROOT/scripts/clone_siimut_application"
-"$PROJECT_ROOT/scripts/clone_siimut_application" --dir "$PROJECT_ROOT/site"
+chmod +x "$PROJECT_ROOT/scripts/clone_siimut_application.sh"
+"$PROJECT_ROOT/scripts/clone_siimut_application.sh" --dir "$PROJECT_ROOT/site"
 
 echo "[3/7] Siapkan .env.docker…"
 if [[ ! -f "$PROJECT_ROOT/.env.docker" ]]; then
