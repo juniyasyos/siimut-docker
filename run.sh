@@ -143,7 +143,8 @@ $COMPOSE_BIN exec -T "$SERVICE_APP" php artisan migrate --force || true
 $COMPOSE_BIN exec -T "$SERVICE_APP" php artisan storage:link || true
 # Izinkan git bekerja pada bind mount (hindari "dubious ownership")
 $COMPOSE_BIN exec -T "$SERVICE_APP" git config --global --add safe.directory /var/www/html || true
-$COMPOSE_BIN exec -T "$SERVICE_APP" composer run setup || true
+# Paksa jalankan setup meskipun APP_ENV=production dengan mengonfirmasi prompt artisan
+$COMPOSE_BIN exec -T "$SERVICE_APP" /bin/sh -lc 'yes | composer run --no-interaction setup' || true
 
 # ---- Bagian Node/npm (sekali jalan) ----
 if [[ "$NODE_BUILD" == "true" ]]; then
