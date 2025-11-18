@@ -47,18 +47,13 @@ FROM base AS deps
 
 # Salin composer manifest untuk cache layer yang baik
 # (lock file ada di repo Anda jadi aman untuk disalin bersama)
-COPY composer.lock composer.json ./
+COPY composer.json ./
 
 ENV COMPOSER_CACHE_DIR=/tmp/composer-cache
 
 RUN set -eux; \
     if [ -f composer.json ]; then \
       echo ">> composer.json found"; \
-      if [ -f composer.lock ]; then \
-        echo ">> using composer.lock"; \
-      else \
-        echo ">> composer.lock not found -> will be generated automatically by install"; \
-      fi; \
       # Di stage deps belum ada source code lengkap -> hindari eksekusi script artisan
       if [ "$APP_ENV" = "production" ]; then \
         composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --optimize-autoloader; \
