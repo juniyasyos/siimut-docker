@@ -10,6 +10,9 @@ SERVICE_DB="${SERVICE_DB:-db}"         # nama service DB generic: 'db'
 SERVICE_NODE="${SERVICE_NODE:-node}"   # shared node container
 NODE_BUILD="${NODE_BUILD:-true}"       # set false untuk skip npm build
 CLEAN_NODE_MODULES="${CLEAN_NODE_MODULES:-false}" # true untuk rm -rf node_modules setelah build
+NODE_VOLUME_UID="${NODE_VOLUME_UID:-1000}"
+NODE_VOLUME_GID="${NODE_VOLUME_GID:-1000}"
+NODE_FIX_PERMISSIONS="${NODE_FIX_PERMISSIONS:-true}"
 
 # Multi-project configuration
 PROJECTS="${PROJECTS:-siimut iam client}"  # space-separated list
@@ -65,6 +68,73 @@ EOF
 }
 
 require() { command -v "$1" >/dev/null 2>&1 || { echo "Error: '$1' tidak ditemukan." >&2; exit 1; }; }
+
+fail() {
+  local msg="$1"
+  echo "Error: ${msg}" >&2
+  exit 1
+}
+
+# Fungsi bantu: baca nilai dari .env.docker (jika tidak ada gunakan default)
+env_from_file() {
+  local key="$1"; local def="$2"; local file="$PROJECT_ROOT/.env.docker"
+  if [[ -f "$file" ]]; then
+    local line
+    line=$(grep -E "^${key}=" "$file" | tail -n1 | sed -E 's/^[^=]+=//') || true
+    if [[ -n "$line" ]]; then printf '%s' "$line"; else printf '%s' "$def"; fi
+  else
+    printf '%s' "$def"
+  fi
+}
+
+run_or_fail() {
+  local action="$1"; shift
+  "$@" && return 0
+  fail "$action"
+}
+
+ensure_mysql_database() {
+  local db_name="$1"
+  local charset="${2:-utf8mb4}"
+  local collate="${3:-utf8mb4_unicode_ci}"
+  local root_pass
+  root_pass="$(env_from_file MYSQL_ROOT_PASSWORD root)"
+  local sql
+  sql="CREATE DATABASE IF NOT EXISTS \\`$db_name\\` CHARACTER SET ${charset} COLLATE ${collate};"
+  echo "  - Memastikan database '${db_name}' ada…"
+  local attempts=0
+  until dc exec -T "$SERVICE_DB" env MYSQL_PWD="$root_pass" mysql -uroot -e "$sql"; do
+    attempts=$((attempts+1))
+    if (( attempts >= 5 )); then
+      fail "Membuat database ${db_name}"
+    fi
+    echo "    DB belum siap, retry ($attempts)…"
+    sleep 2
+  done
+}
+
+ensure_node_permissions() {
+  local node_dir="$1"
+  [[ "$NODE_FIX_PERMISSIONS" != "true" ]] && return 0
+  echo "    • Fixing permissions in $node_dir"
+  run_or_fail "Memperbaiki permission frontend ($node_dir)" \
+    dc exec -T -u 0 "$SERVICE_NODE" sh -c "chown -R ${NODE_VOLUME_UID}:${NODE_VOLUME_GID} '$node_dir'"
+}
+
+wait_for_mysql_service() {
+  local root_pass attempts=0
+  root_pass="$(env_from_file MYSQL_ROOT_PASSWORD root)"
+  echo "[5.5/7] Menunggu service database siap…"
+  until dc exec -T "$SERVICE_DB" env MYSQL_PWD="$root_pass" mysqladmin ping -h 127.0.0.1 -uroot --silent >/dev/null 2>&1; do
+    attempts=$((attempts+1))
+    if (( attempts > 30 )); then
+      fail "Service database tidak bisa dihubungi"
+    fi
+    sleep 2
+  done
+  echo "  - Database siap digunakan"
+}
+
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -247,6 +317,8 @@ if [[ "$REBUILD" == true ]]; then
 fi
 dc up -d --remove-orphans
 
+wait_for_mysql_service
+
 echo "[6/7] Inisialisasi Laravel untuk semua project…"
 
 # Function untuk setup satu project Laravel
@@ -272,28 +344,36 @@ setup_laravel_project() {
     echo "  ⚠️  $proj_dir tidak ada atau bukan Laravel project, skip."
     return
   fi
+
+  ensure_mysql_database "$db_name"
   
   # Tunggu service siap
   echo "  - Menunggu service '$service' siap…"
-  tries=0
+  local tries=0
   until dc exec -T "$service" php -v >/dev/null 2>&1; do
     tries=$((tries+1)); [[ $tries -gt 30 ]] && { echo "  ⚠️  Timeout menunggu '$service', skip."; return; }
     sleep 2
   done
   
   # Pastikan vendor ada
-  dc exec -T "$service" sh -lc 'mkdir -p vendor' || true
+  run_or_fail "Membuat direktori vendor untuk $proj" \
+    dc exec -T "$service" sh -lc 'mkdir -p vendor'
   
-  # Composer install jika perlu
+  # Composer install jika perlu dan hapus cache dalam bootstrap
   if ! dc exec -T "$service" test -f vendor/autoload.php; then
+    echo "  - Remove cache"
+    run_or_fail "Membersihkan cache bootstrap untuk $proj" \
+      dc exec -T "$service" /bin/sh -lc 'set -e; export COMPOSER_CACHE_DIR=/tmp/composer-cache COMPOSER_HOME=/tmp/composer-home COMPOSER_TMP_DIR=/tmp; rm -rf ./bootstrap/cache/*'
     echo "  - composer install…"
-    dc exec -T "$service" /bin/sh -lc 'export COMPOSER_CACHE_DIR=/tmp/composer-cache COMPOSER_HOME=/tmp/composer-home COMPOSER_TMP_DIR=/tmp; composer install --prefer-dist --no-interaction --no-progress' || true
+    run_or_fail "Composer install untuk $proj" \
+      dc exec -T "$service" /bin/sh -lc 'set -e; export COMPOSER_CACHE_DIR=/tmp/composer-cache COMPOSER_HOME=/tmp/composer-home COMPOSER_TMP_DIR=/tmp; composer install --prefer-dist --no-interaction --no-progress'
   fi
 
   # Pastikan .env ada
   if ! dc exec -T "$service" test -f .env; then
     echo "  - .env tidak ditemukan, menyalin dari .env.example"
-    dc exec -T "$service" php -r 'file_exists(".env") || copy(".env.example", ".env");' || true
+    run_or_fail "Menyalin file .env untuk $proj" \
+      dc exec -T "$service" php -r 'file_exists(".env") || copy(".env.example", ".env");'
   fi
   
   # Sinkron DB config
@@ -306,39 +386,36 @@ setup_laravel_project() {
   set_kv DB_DATABASE "'"$db_name"'"; \
   set_kv DB_USERNAME "${MYSQL_USER:-${DB_USER:-laravel}}"; \
   set_kv DB_PASSWORD "${MYSQL_PASSWORD:-${DB_PASSWORD:-laravel}}"; \
+  set_kv DEBUGBAR_ENABLED false; \
+  set_kv LARAVEL_DEBUGBAR_ENABLED false; \
   '
   
   # Bersih cache config
   echo "  - Membersihkan cache…"
-  dc exec -T "$service" sh -lc 'rm -f bootstrap/cache/config.php bootstrap/cache/services.php || true'
-  dc exec -T "$service" sh -lc 'CACHE_DRIVER=file php artisan optimize:clear || true'
+  run_or_fail "Menghapus file cache untuk $proj" \
+    dc exec -T "$service" sh -lc 'rm -f bootstrap/cache/config.php bootstrap/cache/services.php'
+  run_or_fail "php artisan optimize:clear untuk $proj" \
+    dc exec -T "$service" sh -lc 'CACHE_DRIVER=file php artisan optimize:clear'
   
   # APP_KEY + migrasi + storage link
   echo "  - Generate APP_KEY, migrate, storage link…"
-  dc exec -T "$service" php artisan key:generate --force || true
+  run_or_fail "php artisan key:generate untuk $proj" \
+    dc exec -T "$service" php artisan key:generate --force
   dc exec -T "$service" php -r 'if(!preg_match("/^APP_KEY=.+$/m", file_get_contents(".env"))){$k="base64:".base64_encode(random_bytes(32)); $e=file_get_contents(".env"); if(preg_match("/^APP_KEY=.*$/m",$e)){$e=preg_replace("/^APP_KEY=.*$/m","APP_KEY=".$k,$e);}else{$e.="\nAPP_KEY=".$k."\n";} file_put_contents(".env",$e);}'
   
-  dc exec -T "$service" php artisan migrate --force || echo "  ⚠️  Migration failed for $proj"
-  dc exec -T "$service" php artisan storage:link || true
+  run_or_fail "php artisan migrate untuk $proj" \
+    dc exec -T "$service" php artisan migrate --force
+  run_or_fail "php artisan storage:link untuk $proj" \
+    dc exec -T "$service" php artisan storage:link --force
   dc exec -T "$service" git config --global --add safe.directory /var/www/html || true
-  dc exec -T "$service" /bin/sh -lc 'yes | composer run --no-interaction setup' || true
+  run_or_fail "Menjalankan composer setup untuk $proj" \
+    dc exec -T "$service" /bin/sh -lc 'set -e; if composer run --list --no-ansi 2>/dev/null | grep -q " setup"; then yes | composer run --no-interaction setup; fi'
   
   # Cache config untuk production
-  dc exec -T "$service" sh -lc 'if [ "${APP_ENV:-production}" = "production" ]; then php artisan config:cache || true; fi'
+  run_or_fail "php artisan config:cache untuk $proj (opsional)" \
+    dc exec -T "$service" sh -lc 'if [ "${APP_ENV:-production}" = "production" ]; then php artisan config:cache; fi'
   
   echo "  ✓ $proj setup complete!"
-}
-
-# Fungsi bantu: baca nilai dari .env.docker
-env_from_file() {
-  local key="$1"; local def="$2"; local file="$PROJECT_ROOT/.env.docker"
-  if [[ -f "$file" ]]; then
-    local line
-    line=$(grep -E "^${key}=" "$file" | tail -n1 | sed -E 's/^[^=]+=//') || true
-    if [[ -n "$line" ]]; then printf '%s' "$line"; else printf '%s' "$def"; fi
-  else
-    printf '%s' "$def"
-  fi
 }
 
 # Setup semua project
@@ -369,20 +446,25 @@ if [[ "$NODE_BUILD" == "true" ]]; then
       fi
       
       echo "  - Building $proj…"
+      ensure_node_permissions "$node_dir"
       # Pastikan direktori build bisa ditulis (dari dalam container dengan user yang sama)
-      dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && mkdir -p public/build/assets" || true
+      run_or_fail "Menyiapkan direktori build frontend untuk $proj" \
+        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && mkdir -p public/build/assets"
       
       # Install dependencies
       echo "    • Installing npm packages..."
-      dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && (npm ci || npm install)" || echo "    ⚠️  npm install failed for $proj"
+      run_or_fail "npm install untuk $proj" \
+        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && (npm ci || npm install)"
       
       # Build assets
       echo "    • Building assets..."
-      dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && npm run build" || echo "    ⚠️  npm build failed for $proj"
+      run_or_fail "npm run build untuk $proj" \
+        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && npm run build"
       
       if [[ "$CLEAN_NODE_MODULES" == "true" ]]; then
         echo "    • Cleaning node_modules..."
-        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && rm -rf node_modules"
+        run_or_fail "Membersihkan node_modules untuk $proj" \
+          dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && rm -rf node_modules"
       fi
       
       echo "    ✓ $proj frontend build complete"
