@@ -57,8 +57,7 @@ RUN set -eux; \
         composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --optimize-autoloader; \
       else \
         composer install --prefer-dist --no-interaction --no-progress --no-scripts; \
-      fi; \
-  && rm -rf "$COMPOSER_CACHE_DIR"
+      fi
 
 # Pastikan direktori vendor selalu ada agar COPY dari stage ini tidak gagal
 RUN mkdir -p /var/www/html/vendor
