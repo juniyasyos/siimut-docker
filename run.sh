@@ -12,27 +12,26 @@ NODE_BUILD="${NODE_BUILD:-true}"       # set false untuk skip npm build
 CLEAN_NODE_MODULES="${CLEAN_NODE_MODULES:-false}" # true untuk rm -rf node_modules setelah build
 
 # Multi-project configuration
-# PROJECTS="${PROJECTS:-siimut iam client}"  # space-separated list
-PROJECTS="${PROJECTS:-iam}"  # space-separated list
+PROJECTS="${PROJECTS:-siimut iam client}"  # space-separated list
 declare -A PROJECT_SERVICES=(
-  # ["siimut"]="app-siimut"
+  ["siimut"]="app-siimut"
   ["iam"]="app-iam"
-  # ["client"]="app-client"
+  ["client"]="app-client"
 )
 declare -A PROJECT_DIRS=(
-  # ["siimut"]="site/siimut-application"
+  ["siimut"]="site/siimut-application"
   ["iam"]="site/laravel-iam"
-  # ["client"]="site/client-iiam"
+  ["client"]="site/client-iiam"
 )
 declare -A PROJECT_PORTS=(
-  # ["siimut"]="8080"
+  ["siimut"]="8080"
   ["iam"]="8081"
-  # ["client"]="8082"
+  ["client"]="8082"
 )
 declare -A PROJECT_NODE_DIRS=(
-  # ["siimut"]="/var/www/siimut"
+  ["siimut"]="/var/www/siimut"
   ["iam"]="/var/www/iam"
-  # ["client"]="/var/www/client"
+  ["client"]="/var/www/client"
 )
 # --------------------------------------------------
 
