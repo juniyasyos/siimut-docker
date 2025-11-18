@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# clone_laravel_iam
+# clone_client_iiam
 #
 # Idempotent, safe clone/update script for:
-#   https://github.com/juniyasyos/laravel-iam
+#   https://github.com/juniyasyos/client-iiam
 #
 # Defaults:
-#   - Clones into "$HOME/siimut-docker/site/laravel-iam" by default
+#   - Clones into "$HOME/siimut-docker/site/client-iiam" by default
 #   - Uses HTTPS by default; `--ssh` switches to SSH
 #   - Optional `--branch <name>` and `--shallow`
 #   - Safe update: refuses to modify dirty working tree unless `--hard-update`
 #
 # Usage examples:
-#   scripts/clone_laravel_iam.sh
-#   scripts/clone_laravel_iam.sh --dir /var/www/site
-#   scripts/clone_laravel_iam.sh --ssh --branch main --shallow
-#   scripts/clone_laravel_iam.sh --hard-update
+#   scripts/clone_client_iiam.sh
+#   scripts/clone_client_iiam.sh --dir /var/www/site
+#   scripts/clone_client_iiam.sh --ssh --branch main --shallow
+#   scripts/clone_client_iiam.sh --hard-update
 
-REPO_PATH="juniyasyos/laravel-iam"
+REPO_PATH="juniyasyos/client-iiam"
 HTTPS_URL="https://github.com/${REPO_PATH}.git"
 SSH_URL="git@github.com:${REPO_PATH}.git"
 
 TARGET_PARENT="${HOME}/siimut-docker/site"
-REPO_NAME="laravel-iam"
+REPO_NAME="client-iiam"
 # Leave BRANCH empty to use the repo default branch (safer)
 BRANCH=""
 SHALLOW=false

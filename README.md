@@ -35,22 +35,17 @@ Script ini akan otomatis:
 
 ### Opsi 2: Setup Manual
 
-#### 1. Clone/Setup Project Laravel-IAM
+#### 1. Clone Project Laravel-IAM
 ```bash
 ./scripts/clone_laravel_iam.sh
 ```
 
-#### 2. Setup Project Client-IIAM
+#### 2. Clone Project Client-IIAM
 ```bash
-./scripts/setup_client_iiam.sh
-```
-Kemudian letakkan aplikasi Laravel Anda di `./site/client-iiam` atau buat project baru:
-```bash
-docker run --rm -v $(pwd)/site:/app composer create-project laravel/laravel client-iiam
+./scripts/clone_client_iiam.sh
 ```
 
-#### 3. Setup Project SI-IMUT (Sudah Ada)
-Jalankan script berikut dari root repo:
+#### 3. Clone Project SI-IMUT
 ```bash
 ./scripts/clone_siimut_application.sh --dir ./site
 ```

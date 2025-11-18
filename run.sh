@@ -109,11 +109,11 @@ for proj in $PROJECTS; do
       ;;
     iam)
       echo "  - Setting up Laravel-IAM…"
-      if [[ ! -d "$PROJECT_ROOT/$proj_dir" ]]; then
+      if [[ ! -d "$PROJECT_ROOT/$proj_dir" ]] || [[ ! -d "$PROJECT_ROOT/$proj_dir/.git" ]]; then
         if [[ -x "$PROJECT_ROOT/scripts/clone_laravel_iam.sh" ]]; then
-          cd "$PROJECT_ROOT" && yes 2>/dev/null | "$PROJECT_ROOT/scripts/clone_laravel_iam.sh" || true
+          "$PROJECT_ROOT/scripts/clone_laravel_iam.sh" --dir "$PROJECT_ROOT/site"
         else
-          echo "    Warning: $proj_dir not found. Run: ./scripts/clone_laravel_iam.sh"
+          echo "    Warning: clone_laravel_iam.sh not found. Run: ./scripts/clone_laravel_iam.sh"
         fi
       else
         echo "    ✓ Laravel-IAM already exists"
@@ -121,11 +121,14 @@ for proj in $PROJECTS; do
       ;;
     client)
       echo "  - Setting up Client-IIAM…"
-      if [[ ! -d "$PROJECT_ROOT/$proj_dir" ]]; then
-        mkdir -p "$PROJECT_ROOT/$proj_dir"
-        echo "    ⚠️  Client-IIAM directory created. Place your Laravel app here: $proj_dir"
+      if [[ ! -d "$PROJECT_ROOT/$proj_dir" ]] || [[ ! -d "$PROJECT_ROOT/$proj_dir/.git" ]]; then
+        if [[ -x "$PROJECT_ROOT/scripts/clone_client_iiam.sh" ]]; then
+          "$PROJECT_ROOT/scripts/clone_client_iiam.sh" --dir "$PROJECT_ROOT/site"
+        else
+          echo "    Warning: clone_client_iiam.sh not found. Run: ./scripts/clone_client_iiam.sh"
+        fi
       else
-        echo "    ✓ Client-IIAM directory exists"
+        echo "    ✓ Client-IIAM already exists"
       fi
       ;;
   esac
