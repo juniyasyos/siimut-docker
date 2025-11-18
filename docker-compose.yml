@@ -137,7 +137,7 @@ services:
     image: phpmyadmin/phpmyadmin
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8800:80"
     links:
       - db
     environment:
