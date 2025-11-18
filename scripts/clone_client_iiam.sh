@@ -13,7 +13,6 @@ set -euo pipefail
 #   - Safe update: refuses to modify dirty working tree unless `--hard-update`
 #
 # Usage examples:
-#   scripts/clone_client_iiam.sh
 #   scripts/clone_client_iiam.sh --dir /var/www/site
 #   scripts/clone_client_iiam.sh --ssh --branch main --shallow
 #   scripts/clone_client_iiam.sh --hard-update

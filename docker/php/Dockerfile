@@ -52,12 +52,23 @@ COPY composer.lock composer.json ./
 ENV COMPOSER_CACHE_DIR=/tmp/composer-cache
 
 RUN set -eux; \
+    if [ -f composer.json ]; then \
+      echo ">> composer.json found"; \
+      if [ -f composer.lock ]; then \
+        echo ">> using composer.lock"; \
+      else \
+        echo ">> composer.lock not found -> will be generated automatically by install"; \
+      fi; \
       # Di stage deps belum ada source code lengkap -> hindari eksekusi script artisan
       if [ "$APP_ENV" = "production" ]; then \
         composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --optimize-autoloader; \
       else \
         composer install --prefer-dist --no-interaction --no-progress --no-scripts; \
-      fi
+      fi; \
+    else \
+      echo '>> composer.json not found. Skipping deps stage (this is OK for a fresh repo).'; \
+    fi \
+  && rm -rf "$COMPOSER_CACHE_DIR"
 
 # Pastikan direktori vendor selalu ada agar COPY dari stage ini tidak gagal
 RUN mkdir -p /var/www/html/vendor
