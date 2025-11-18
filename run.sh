@@ -384,6 +384,14 @@ if [[ "$NODE_BUILD" == "true" ]]; then
   echo ""
   echo "[6b/7] Build frontend (npm) untuk semua project…"
   if dc config --services | grep -qx "$SERVICE_NODE"; then
+    # Tunggu node container siap
+    echo "  - Menunggu node container siap…"
+    tries=0
+    until dc exec -T "$SERVICE_NODE" node --version >/dev/null 2>&1; do
+      tries=$((tries+1)); [[ $tries -gt 20 ]] && { echo "  ⚠️  Timeout menunggu node container"; break; }
+      sleep 2
+    done
+    
     for proj in $PROJECTS; do
       proj_dir="${PROJECT_DIRS[$proj]}"
       node_dir="${PROJECT_NODE_DIRS[$proj]}"
@@ -394,14 +402,23 @@ if [[ "$NODE_BUILD" == "true" ]]; then
       fi
       
       echo "  - Building $proj…"
-      # Pastikan direktori build bisa ditulis
-      dc run --rm "$SERVICE_NODE" /bin/sh -lc "cd $node_dir && mkdir -p public/build/assets && chmod -R 0777 public/build" || true
-      dc run --rm "$SERVICE_NODE" /bin/sh -lc "cd $node_dir && (npm ci || npm install)" || echo "    ⚠️  npm install failed for $proj"
-      dc run --rm "$SERVICE_NODE" /bin/sh -lc "cd $node_dir && npm run build" || echo "    ⚠️  npm build failed for $proj"
+      # Pastikan direktori build bisa ditulis (dari dalam container dengan user yang sama)
+      dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && mkdir -p public/build/assets" || true
+      
+      # Install dependencies
+      echo "    • Installing npm packages..."
+      dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && (npm ci || npm install)" || echo "    ⚠️  npm install failed for $proj"
+      
+      # Build assets
+      echo "    • Building assets..."
+      dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && npm run build" || echo "    ⚠️  npm build failed for $proj"
       
       if [[ "$CLEAN_NODE_MODULES" == "true" ]]; then
-        dc run --rm "$SERVICE_NODE" /bin/sh -lc "cd $node_dir && rm -rf node_modules"
+        echo "    • Cleaning node_modules..."
+        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && rm -rf node_modules"
       fi
+      
+      echo "    ✓ $proj frontend build complete"
     done
   else
     echo "  - Warning: service '$SERVICE_NODE' tidak didefinisikan di docker-compose; lewati build frontend."
