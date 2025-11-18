@@ -327,6 +327,14 @@ setup_laravel_project() {
   local service="${PROJECT_SERVICES[$proj]}"
   local proj_dir="${PROJECT_DIRS[$proj]}"
   
+  # Tambahkan validasi untuk memastikan nilai $proj sesuai dengan array yang didefinisikan
+  if [[ -z "${PROJECT_SERVICES[$proj]}" ]]; then
+    fail "Project '$proj' tidak valid atau tidak didefinisikan dalam PROJECT_SERVICES."
+  fi
+  if [[ -z "${PROJECT_DIRS[$proj]}" ]]; then
+    fail "Project '$proj' tidak valid atau tidak didefinisikan dalam PROJECT_DIRS."
+  fi
+  
   # Tentukan database name berdasarkan project
   local db_name
   case "$proj" in
