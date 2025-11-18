@@ -130,6 +130,33 @@ services:
     command: tail -f /dev/null
     restart: unless-stopped
 
+  ####################################################################################################
+  # phpMyAdmin
+  ####################################################################################################
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    links:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 1024M
+      MEMORY_LIMIT: 1024M
+      POST_MAX_SIZE: 1024M
+      MAX_EXECUTION_TIME: 600
+      MAX_INPUT_TIME: 600
+      MAX_INPUT_VARS: 10000
+      APACHE_DOCUMENT_ROOT: /var/www/html
+    volumes:
+      - ./Docker/phpmyadmin/sessions:/sessions
+      - ./Docker/phpmyadmin/php.ini:/usr/local/etc/php/conf.d/99-custom.ini
+      - ./Docker/phpmyadmin/config.inc.php:/etc/phpmyadmin/config.inc.php
+    user: "33:33"
+
 volumes:
   mysql_data:
   caddy_data:
