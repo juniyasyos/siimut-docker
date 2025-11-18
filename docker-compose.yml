@@ -1,4 +1,26 @@
 services:
+  # ===== MySQL Database - Shared untuk semua project =====
+  db:
+    image: mysql:8.4
+    container_name: base-db-mysql
+    env_file:
+      - .env.docker
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      # Databases akan dibuat via script atau manual
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    ports:
+      - "3307:3306"  # host:container
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # ===== Web Server (Caddy) - Shared untuk semua project =====
   web:
     image: caddy:2-alpine
@@ -35,6 +57,14 @@ services:
       - .env.docker
     environment:
       PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+      DB_DATABASE: ${DB_SIIMUT:-siimut}
+      DB_USERNAME: ${DB_USER:-laravel}
+      DB_PASSWORD: ${DB_PASSWORD:-laravel}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_CONNECTION: mysql
+    depends_on:
+      - db
     restart: unless-stopped
 
   # ===== LARAVEL-IAM Project =====
@@ -52,6 +82,14 @@ services:
       - .env.docker
     environment:
       PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+      DB_DATABASE: ${DB_IAM:-laravel_iam}
+      DB_USERNAME: ${DB_USER:-laravel}
+      DB_PASSWORD: ${DB_PASSWORD:-laravel}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_CONNECTION: mysql
+    depends_on:
+      - db
     restart: unless-stopped
 
   # ===== CLIENT-IIAM Project =====
@@ -69,6 +107,14 @@ services:
       - .env.docker
     environment:
       PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+      DB_DATABASE: ${DB_CLIENT:-client_iiam}
+      DB_USERNAME: ${DB_USER:-laravel}
+      DB_PASSWORD: ${DB_PASSWORD:-laravel}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_CONNECTION: mysql
+    depends_on:
+      - db
     restart: unless-stopped
   
   # ===== Node (Shared untuk build assets) =====
@@ -85,6 +131,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  mysql_data:
   caddy_data:
   caddy_config:
   vendor_siimut:

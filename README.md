@@ -65,19 +65,21 @@ Akses aplikasi di:
 ### Shared Services
 - `web` (Caddy) — **1 instance** melayani semua project di port berbeda
 - `node` (Node) — **1 instance** untuk build assets semua project
-- `db-postgress` (Postgres 16) — database bersama
+- `db` (MySQL 8.4) — **1 database server** dengan 3 database terpisah
 
 ### Application Containers
-- `app-siimut` (PHP-FPM) — Laravel SI-IMUT (Port 8080)
-- `app-iam` (PHP-FPM) — Laravel IAM (Port 8081)
-- `app-client` (PHP-FPM) — Client IIAM (Port 8082)
+- `app-siimut` (PHP-FPM) — Laravel SI-IMUT (Port 8080, DB: siimut)
+- `app-iam` (PHP-FPM) — Laravel IAM (Port 8081, DB: laravel_iam)
+- `app-client` (PHP-FPM) — Client IIAM (Port 8082, DB: client_iiam)
 
-**Total: 6 containers** (1 Caddy + 3 PHP-FPM + 1 Node + 1 Database)
+**Total: 6 containers** (1 Caddy + 3 PHP-FPM + 1 Node + 1 MySQL)
 
 ## Variabel Lingkungan Compose
 Isi di file `.env.docker` (dibaca oleh `docker-compose.yml`):
-- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`: kredensial DB
-- Mirror opsional: `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+- `MYSQL_ROOT_PASSWORD`: Password root MySQL
+- `MYSQL_USER`: User untuk semua aplikasi
+- `MYSQL_PASSWORD`: Password user MySQL
+- `DB_SIIMUT`, `DB_IAM`, `DB_CLIENT`: Nama database per project
 
 Contoh: lihat `.env.docker.example`.
 
@@ -144,6 +146,33 @@ npm install && npm run build
 cd /var/www/client
 npm install && npm run build
 ```
+
+## Akses Database
+
+### Dari Host Machine
+```bash
+mysql -h 127.0.0.1 -P 3307 -u laravel -p
+# Password: laravel (sesuai .env.docker)
+
+# Atau dengan root
+mysql -h 127.0.0.1 -P 3307 -u root -p
+# Password: root (sesuai .env.docker)
+```
+
+### Dari Container Aplikasi
+```bash
+# Database sudah dikonfigurasi otomatis via environment variables
+docker exec -it siimut-app php artisan db:show
+docker exec -it iam-app php artisan db:show
+docker exec -it client-app php artisan db:show
+```
+
+### Database Per Project
+- **SI-IMUT**: database `siimut`
+- **Laravel-IAM**: database `laravel_iam`
+- **Client-IIAM**: database `client_iiam`
+
+Semua database menggunakan user yang sama (`laravel`) dengan password yang sama, memudahkan manajemen namun tetap terpisah datanya.
 
 ## Catatan
 - Volume kode:

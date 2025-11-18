@@ -37,8 +37,13 @@ declare -A PROJECT_NODE_DIRS=(
 
 REBUILD=false
 FRESH=false
-DB_CHOICE="${DB_CHOICE:-${DB_DRIVER:-pgsql}}"   # pgsql | mysql
+DB_CHOICE="${DB_CHOICE:-mysql}"   # default mysql instead of pgsql
 AUTO_DOTENV="${AUTO_DOTENV:-ask}"               # ask | copy | manual
+
+# Database names untuk setiap project
+DB_SIIMUT="${DB_SIIMUT:-siimut}"
+DB_IAM="${DB_IAM:-laravel_iam}"
+DB_CLIENT="${DB_CLIENT:-client_iiam}"
 
 usage() {
   cat <<EOF
@@ -74,13 +79,8 @@ done
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-# Siapkan compose flags gabungan (base + override DB)
+# Siapkan compose flags - hanya gunakan base compose file (MySQL sudah included)
 COMPOSE_FLAGS=( -f "$PROJECT_ROOT/docker-compose.yml" )
-case "$DB_CHOICE" in
-  pgsql) COMPOSE_FLAGS+=( -f "$PROJECT_ROOT/docker-compose.pgsql.yml" ) ;;
-  mysql) COMPOSE_FLAGS+=( -f "$PROJECT_ROOT/docker-compose.mysql.yml" ) ;;
-  *) echo "DB pilihan tidak dikenal: $DB_CHOICE (gunakan pgsql|mysql)" >&2; exit 2 ;;
-esac
 
 dc() { # wrapper docker compose dengan flags yang konsisten
   $COMPOSE_BIN "${COMPOSE_FLAGS[@]}" "$@"
@@ -138,42 +138,26 @@ echo "[3/7] Siapkan .env.docker…"
 AUTO_ENV_DOCKER="${AUTO_ENV_DOCKER:-ask}"   # ask|copy|env|manual
 if [[ ! -f "$PROJECT_ROOT/.env.docker" ]]; then
   create_env_docker() {
-    local driver="$1"; shift
-    if [[ "$driver" == "mysql" ]]; then
-      local db_name db_user db_pass root_pass
-      db_name="${MYSQL_DATABASE:-${DB_DATABASE:-siimut}}"
-      db_user="${MYSQL_USER:-${DB_USERNAME:-siimut}}"
-      db_pass="${MYSQL_PASSWORD:-${DB_PASSWORD:-siimut}}"
-      root_pass="${MYSQL_ROOT_PASSWORD:-root}"
-      cat > "$PROJECT_ROOT/.env.docker" <<ENVEOF
+    local db_user db_pass root_pass
+    db_user="${MYSQL_USER:-${DB_USERNAME:-laravel}}"
+    db_pass="${MYSQL_PASSWORD:-${DB_PASSWORD:-laravel}}"
+    root_pass="${MYSQL_ROOT_PASSWORD:-root}"
+    cat > "$PROJECT_ROOT/.env.docker" <<ENVEOF
+# MySQL Configuration
 DB_DRIVER=mysql
-MYSQL_DATABASE=${db_name}
+MYSQL_ROOT_PASSWORD=${root_pass}
 MYSQL_USER=${db_user}
 MYSQL_PASSWORD=${db_pass}
-MYSQL_ROOT_PASSWORD=${root_pass}
 
-# Mirror untuk aplikasi
-DB_DATABASE=${db_name}
-DB_USERNAME=${db_user}
+# Database names per project
+DB_SIIMUT=${DB_SIIMUT}
+DB_IAM=${DB_IAM}
+DB_CLIENT=${DB_CLIENT}
+
+# Common DB credentials (untuk compatibility)
+DB_USER=${db_user}
 DB_PASSWORD=${db_pass}
 ENVEOF
-    else
-      local db_name db_user db_pass
-      db_name="${POSTGRES_DB:-${DB_DATABASE:-siimut}}"
-      db_user="${POSTGRES_USER:-${DB_USERNAME:-siimut}}"
-      db_pass="${POSTGRES_PASSWORD:-${DB_PASSWORD:-siimut}}"
-      cat > "$PROJECT_ROOT/.env.docker" <<ENVEOF
-DB_DRIVER=pgsql
-POSTGRES_DB=${db_name}
-POSTGRES_USER=${db_user}
-POSTGRES_PASSWORD=${db_pass}
-
-# Mirror untuk aplikasi
-DB_DATABASE=${db_name}
-DB_USERNAME=${db_user}
-DB_PASSWORD=${db_pass}
-ENVEOF
-    fi
   }
 
   if [[ "$AUTO_ENV_DOCKER" == "ask" ]]; then
@@ -192,56 +176,39 @@ ENVEOF
         cp "$PROJECT_ROOT/.env.docker.example" "$PROJECT_ROOT/.env.docker"
       else
         echo "  .env.docker.example tidak ditemukan; generate dari env."
-        create_env_docker "$DB_CHOICE"
+        create_env_docker
       fi ;;
     E|ENV)
-      create_env_docker "$DB_CHOICE" ;;
+      create_env_docker ;;
     M|MANUAL)
-      echo "  Mode manual: pilih DB driver (pgsql/mysql). Default: $DB_CHOICE"
-      read -r -p "  DB driver [${DB_CHOICE}]: " DB_DR_IN || DB_DR_IN=""
-      DB_DR_USE=${DB_DR_IN:-$DB_CHOICE}
-      if [[ "${DB_DR_USE}" == "mysql" ]]; then
-        read -r -p "  MYSQL_DATABASE [${MYSQL_DATABASE:-${DB_DATABASE:-siimut}}]: " IN_DB || IN_DB=""
-        read -r -p "  MYSQL_USER [${MYSQL_USER:-${DB_USERNAME:-siimut}}]: " IN_USER || IN_USER=""
-        read -r -p "  MYSQL_PASSWORD [${MYSQL_PASSWORD:-${DB_PASSWORD:-siimut}}]: " IN_PASS || IN_PASS=""
-        read -r -p "  MYSQL_ROOT_PASSWORD [${MYSQL_ROOT_PASSWORD:-root}]: " IN_ROOT || IN_ROOT=""
-        MYSQL_DATABASE=${IN_DB:-${MYSQL_DATABASE:-${DB_DATABASE:-siimut}}}
-        MYSQL_USER=${IN_USER:-${MYSQL_USER:-${DB_USERNAME:-siimut}}}
-        MYSQL_PASSWORD=${IN_PASS:-${MYSQL_PASSWORD:-${DB_PASSWORD:-siimut}}}
-        MYSQL_ROOT_PASSWORD=${IN_ROOT:-${MYSQL_ROOT_PASSWORD:-root}}
-        cat > "$PROJECT_ROOT/.env.docker" <<ENVEOF
+      echo "  Mode manual: isi beberapa nilai (biarkan kosong untuk default)."
+      read -r -p "  MYSQL_USER (default: laravel): " IN_USER || IN_USER=""
+      read -r -p "  MYSQL_PASSWORD (default: laravel): " IN_PASS || IN_PASS=""
+      read -r -p "  MYSQL_ROOT_PASSWORD (default: root): " IN_ROOT || IN_ROOT=""
+      
+      MYSQL_USER=${IN_USER:-laravel}
+      MYSQL_PASSWORD=${IN_PASS:-laravel}
+      MYSQL_ROOT_PASSWORD=${IN_ROOT:-root}
+      
+      cat > "$PROJECT_ROOT/.env.docker" <<ENVEOF
+# MySQL Configuration
 DB_DRIVER=mysql
-MYSQL_DATABASE=${MYSQL_DATABASE}
+MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 MYSQL_USER=${MYSQL_USER}
 MYSQL_PASSWORD=${MYSQL_PASSWORD}
-MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 
-# Mirror untuk aplikasi
-DB_DATABASE=${MYSQL_DATABASE}
-DB_USERNAME=${MYSQL_USER}
+# Database names per project
+DB_SIIMUT=${DB_SIIMUT}
+DB_IAM=${DB_IAM}
+DB_CLIENT=${DB_CLIENT}
+
+# Common DB credentials
+DB_USER=${MYSQL_USER}
 DB_PASSWORD=${MYSQL_PASSWORD}
 ENVEOF
-      else
-        read -r -p "  POSTGRES_DB [${POSTGRES_DB:-${DB_DATABASE:-siimut}}]: " IN_DB || IN_DB=""
-        read -r -p "  POSTGRES_USER [${POSTGRES_USER:-${DB_USERNAME:-siimut}}]: " IN_USER || IN_USER=""
-        read -r -p "  POSTGRES_PASSWORD [${POSTGRES_PASSWORD:-${DB_PASSWORD:-siimut}}]: " IN_PASS || IN_PASS=""
-        POSTGRES_DB=${IN_DB:-${POSTGRES_DB:-${DB_DATABASE:-siimut}}}
-        POSTGRES_USER=${IN_USER:-${POSTGRES_USER:-${DB_USERNAME:-siimut}}}
-        POSTGRES_PASSWORD=${IN_PASS:-${POSTGRES_PASSWORD:-${DB_PASSWORD:-siimut}}}
-        cat > "$PROJECT_ROOT/.env.docker" <<ENVEOF
-DB_DRIVER=pgsql
-POSTGRES_DB=${POSTGRES_DB}
-POSTGRES_USER=${POSTGRES_USER}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-
-# Mirror untuk aplikasi
-DB_DATABASE=${POSTGRES_DB}
-DB_USERNAME=${POSTGRES_USER}
-DB_PASSWORD=${POSTGRES_PASSWORD}
-ENVEOF
-      fi ;;
+      ;;
     *)
-      create_env_docker "$DB_CHOICE" ;;
+      create_env_docker ;;
   esac
 
   echo "Dibuat: .env.docker"
@@ -288,8 +255,17 @@ setup_laravel_project() {
   local service="${PROJECT_SERVICES[$proj]}"
   local proj_dir="${PROJECT_DIRS[$proj]}"
   
+  # Tentukan database name berdasarkan project
+  local db_name
+  case "$proj" in
+    siimut) db_name="$DB_SIIMUT" ;;
+    iam) db_name="$DB_IAM" ;;
+    client) db_name="$DB_CLIENT" ;;
+    *) db_name="laravel" ;;
+  esac
+  
   echo ""
-  echo "  ═══ Setting up $proj (${service}) ═══"
+  echo "  ═══ Setting up $proj (${service}) - DB: $db_name ═══"
   
   # Cek apakah direktori project ada
   if [[ ! -d "$PROJECT_ROOT/$proj_dir" ]] || [[ ! -f "$PROJECT_ROOT/$proj_dir/composer.json" ]]; then
@@ -324,21 +300,12 @@ setup_laravel_project() {
   echo "  - Sinkronisasi konfigurasi database…"
   dc exec -T "$service" /bin/sh -lc 'set -e; \
   set_kv() { k="$1"; v="$2"; if grep -qE "^${k}=.*$" .env; then sed -i "s#^${k}=.*#${k}=${v}#" .env; else echo "${k}=${v}" >> .env; fi; }; \
-  if [ "$DB_CHOICE" = "mysql" ]; then \
-    set_kv DB_CONNECTION mysql; \
-    set_kv DB_HOST '"$SERVICE_DB"'; \
-    set_kv DB_PORT 3306; \
-    set_kv DB_DATABASE "${MYSQL_DATABASE:-${DB_DATABASE:-laravel}}"; \
-    set_kv DB_USERNAME "${MYSQL_USER:-${DB_USERNAME:-laravel}}"; \
-    set_kv DB_PASSWORD "${MYSQL_PASSWORD:-${DB_PASSWORD:-laravel}}"; \
-  else \
-    set_kv DB_CONNECTION pgsql; \
-    set_kv DB_HOST '"$SERVICE_DB"'; \
-    set_kv DB_PORT 5432; \
-    set_kv DB_DATABASE "${POSTGRES_DB:-${DB_DATABASE:-laravel}}"; \
-    set_kv DB_USERNAME "${POSTGRES_USER:-${DB_USERNAME:-laravel}}"; \
-    set_kv DB_PASSWORD "${POSTGRES_PASSWORD:-${DB_PASSWORD:-laravel}}"; \
-  fi; \
+  set_kv DB_CONNECTION mysql; \
+  set_kv DB_HOST db; \
+  set_kv DB_PORT 3306; \
+  set_kv DB_DATABASE "'"$db_name"'"; \
+  set_kv DB_USERNAME "${MYSQL_USER:-${DB_USER:-laravel}}"; \
+  set_kv DB_PASSWORD "${MYSQL_PASSWORD:-${DB_PASSWORD:-laravel}}"; \
   '
   
   # Bersih cache config
@@ -431,8 +398,19 @@ echo
 echo "[7/7] Selesai! Semua aplikasi siap:"
 for proj in $PROJECTS; do
   port="${PROJECT_PORTS[$proj]}"
-  echo "  - ${proj^^}: http://localhost:${port}"
+  case "$proj" in
+    siimut) db_name="$DB_SIIMUT" ;;
+    iam) db_name="$DB_IAM" ;;
+    client) db_name="$DB_CLIENT" ;;
+    *) db_name="unknown" ;;
+  esac
+  echo "  - ${proj^^}: http://localhost:${port} (DB: $db_name)"
 done
 echo ""
-echo "Kontainer aktif: $SERVICE_WEB (web), $SERVICE_DB (db:$DB_CHOICE), $SERVICE_NODE (node)"
+echo "Kontainer aktif: $SERVICE_WEB (web), $SERVICE_DB (db:mysql), $SERVICE_NODE (node)"
 echo "PHP-FPM services: $(for p in $PROJECTS; do echo -n "${PROJECT_SERVICES[$p]} "; done)"
+echo ""
+echo "MySQL Database: localhost:3307 (root password: dari .env.docker)"
+echo "  - Database siimut: $DB_SIIMUT"
+echo "  - Database iam: $DB_IAM"
+echo "  - Database client: $DB_CLIENT"
