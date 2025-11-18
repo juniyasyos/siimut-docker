@@ -100,7 +100,7 @@ ensure_mysql_database() {
   local root_pass
   root_pass="$(env_from_file MYSQL_ROOT_PASSWORD root)"
   local sql
-  sql="CREATE DATABASE IF NOT EXISTS \\`$db_name\\` CHARACTER SET ${charset} COLLATE ${collate};"
+  sql="CREATE DATABASE IF NOT EXISTS $db_name CHARACTER SET ${charset} COLLATE ${collate};"
   echo "  - Memastikan database '${db_name}' ada…"
   local attempts=0
   until dc exec -T "$SERVICE_DB" env MYSQL_PWD="$root_pass" mysql -uroot -e "$sql"; do
