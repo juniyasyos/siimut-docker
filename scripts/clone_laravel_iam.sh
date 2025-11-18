@@ -25,7 +25,7 @@ SSH_URL="git@github.com:${REPO_PATH}.git"
 TARGET_PARENT="${HOME}/siimut-docker/site"
 REPO_NAME="laravel-iam"
 # Leave BRANCH empty to use the repo default branch (safer)
-BRANCH=""
+BRANCH="dev"
 SHALLOW=false
 USE_SSH=false
 HARD_UPDATE=false
