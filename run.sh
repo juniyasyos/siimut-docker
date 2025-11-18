@@ -446,25 +446,38 @@ if [[ "$NODE_BUILD" == "true" ]]; then
       fi
       
       echo "  - Building $proj…"
-      ensure_node_permissions "$node_dir"
-      # Pastikan direktori build bisa ditulis (dari dalam container dengan user yang sama)
-      run_or_fail "Menyiapkan direktori build frontend untuk $proj" \
-        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && mkdir -p public/build/assets"
+      
+      # Fix permissions SEBELUM build - jalankan sebagai root
+      echo "    • Fixing permissions..."
+      dc exec -T -u 0 "$SERVICE_NODE" sh -c "chown -R 1000:1000 $node_dir" || echo "    ⚠️  Warning: tidak bisa fix permission, lanjutkan..."
+      
+      # Pastikan direktori build bisa ditulis
+      echo "    • Preparing build directories..."
+      dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && mkdir -p public/build/assets node_modules" || true
       
       # Install dependencies
       echo "    • Installing npm packages..."
-      run_or_fail "npm install untuk $proj" \
-        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && (npm ci || npm install)"
+      if dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && npm ci 2>/dev/null"; then
+        echo "      ✓ npm ci berhasil"
+      elif dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && npm install"; then
+        echo "      ✓ npm install berhasil"
+      else
+        echo "    ⚠️  npm install failed for $proj, skip build"
+        continue
+      fi
       
       # Build assets
       echo "    • Building assets..."
-      run_or_fail "npm run build untuk $proj" \
-        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && npm run build"
+      if dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && npm run build"; then
+        echo "      ✓ npm build berhasil"
+      else
+        echo "    ⚠️  npm build failed for $proj"
+        continue
+      fi
       
       if [[ "$CLEAN_NODE_MODULES" == "true" ]]; then
         echo "    • Cleaning node_modules..."
-        run_or_fail "Membersihkan node_modules untuk $proj" \
-          dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && rm -rf node_modules"
+        dc exec -T "$SERVICE_NODE" sh -c "cd $node_dir && rm -rf node_modules" || true
       fi
       
       echo "    ✓ $proj frontend build complete"
@@ -496,3 +509,8 @@ echo "MySQL Database: localhost:3307 (root password: dari .env.docker)"
 echo "  - Database siimut: $DB_SIIMUT"
 echo "  - Database iam: $DB_IAM"
 echo "  - Database client: $DB_CLIENT"
+echo ""
+echo "phpMyAdmin: http://localhost:8090"
+echo "  - Server: db"
+echo "  - Username: root atau laravel"
+echo "  - Password: dari .env.docker"

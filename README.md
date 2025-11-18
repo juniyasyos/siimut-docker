@@ -149,7 +149,15 @@ npm install && npm run build
 
 ## Akses Database
 
-### Dari Host Machine
+### phpMyAdmin (GUI)
+Akses phpMyAdmin di: **http://localhost:8090**
+
+Login credentials:
+- **Server**: db
+- **Username**: root atau laravel
+- **Password**: sesuai `.env.docker` (default: root untuk root, laravel untuk user)
+
+### Dari Host Machine (CLI)
 ```bash
 mysql -h 127.0.0.1 -P 3307 -u laravel -p
 # Password: laravel (sesuai .env.docker)
