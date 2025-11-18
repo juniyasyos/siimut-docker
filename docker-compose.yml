@@ -152,9 +152,9 @@ services:
       MAX_INPUT_VARS: 10000
       APACHE_DOCUMENT_ROOT: /var/www/html
     volumes:
-      - ./Docker/phpmyadmin/sessions:/sessions
-      - ./Docker/phpmyadmin/php.ini:/usr/local/etc/php/conf.d/99-custom.ini
-      - ./Docker/phpmyadmin/config.inc.php:/etc/phpmyadmin/config.inc.php
+      - ./docker/phpmyadmin/sessions:/sessions
+      - ./docker/phpmyadmin/php.ini:/usr/local/etc/php/conf.d/99-custom.ini
+      - ./docker/phpmyadmin/config.inc.php:/etc/phpmyadmin/config.inc.php
     user: "33:33"
 
 volumes:
