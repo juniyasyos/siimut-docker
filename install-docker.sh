@@ -4,7 +4,6 @@
 # 🐳 Docker & Docker Compose Installer
 # Versi: 1.2
 # ===============================
-# Author: ChatGPT & Kamu 😎
 # Untuk: Setup Docker di VPS atau WSL/Linux
 # ===============================
 
