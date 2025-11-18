@@ -12,7 +12,8 @@ NODE_BUILD="${NODE_BUILD:-true}"       # set false untuk skip npm build
 CLEAN_NODE_MODULES="${CLEAN_NODE_MODULES:-false}" # true untuk rm -rf node_modules setelah build
 
 # Multi-project configuration
-PROJECTS="${PROJECTS:-siimut iam client}"  # space-separated list
+# PROJECTS="${PROJECTS:-siimut iam client}"  # space-separated list
+PROJECTS="${PROJECTS:-iam}"  # space-separated list
 declare -A PROJECT_SERVICES=(
   # ["siimut"]="app-siimut"
   ["iam"]="app-iam"
