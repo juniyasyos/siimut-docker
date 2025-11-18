@@ -13,12 +13,34 @@ Stack Docker untuk menjalankan 3 aplikasi Laravel dengan Caddy dan Postgres.
 
 ## Setup Awal
 
-### 1. Clone/Setup Project Laravel-IAM
+### Opsi 1: Setup Otomatis (Recommended)
+```bash
+# Setup semua project sekaligus
+./run.sh
+
+# Atau pilih project tertentu
+./run.sh --projects "siimut iam"
+./run.sh --projects "siimut"
+```
+
+Script ini akan otomatis:
+- Clone/update semua repository
+- Setup .env untuk setiap project
+- Install dependencies (composer & npm)
+- Generate APP_KEY
+- Run migrations
+- Build frontend assets
+
+### Opsi 2: Setup Manual
+
+### Opsi 2: Setup Manual
+
+#### 1. Clone/Setup Project Laravel-IAM
 ```bash
 ./scripts/clone_laravel_iam.sh
 ```
 
-### 2. Setup Project Client-IIAM
+#### 2. Setup Project Client-IIAM
 ```bash
 ./scripts/setup_client_iiam.sh
 ```
@@ -27,14 +49,13 @@ Kemudian letakkan aplikasi Laravel Anda di `./site/client-iiam` atau buat projec
 docker run --rm -v $(pwd)/site:/app composer create-project laravel/laravel client-iiam
 ```
 
-### 3. Setup Project SI-IMUT (Sudah Ada)
+#### 3. Setup Project SI-IMUT (Sudah Ada)
 Jalankan script berikut dari root repo:
 ```bash
-./run.sh
+./scripts/clone_siimut_application.sh --dir ./site
 ```
 
-## Jalankan Semua Project
-Setelah semua project di-setup, jalankan:
+#### 4. Jalankan Semua Project
 ```bash
 docker-compose up -d
 ```
