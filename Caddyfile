@@ -1,6 +1,7 @@
+# SI-IMUT Application (Port 8080)
 :8080 {
     encode gzip zstd
-    root * /var/www/html/public
+    root * /var/www/siimut/public
 
     @static {
         file
@@ -8,7 +9,7 @@
     }
     header @static Cache-Control "public, max-age=31536000, immutable"
 
-    php_fastcgi app:9000
+    php_fastcgi app-siimut:9000
     file_server
 
     log {
@@ -16,3 +17,44 @@
         format console
     }
 }
+
+# LARAVEL-IAM Application (Port 8081)
+:8081 {
+    encode gzip zstd
+    root * /var/www/iam/public
+
+    @static {
+        file
+        path /storage/* /assets/* *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.webp *.woff *.woff2
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    php_fastcgi app-iam:9000
+    file_server
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+# CLIENT-IIAM Application (Port 8082)
+:8082 {
+    encode gzip zstd
+    root * /var/www/client/public
+
+    @static {
+        file
+        path /storage/* /assets/* *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.webp *.woff *.woff2
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    php_fastcgi app-client:9000
+    file_server
+
+    log {
+        output stdout
+        format console
+    }
+}
+

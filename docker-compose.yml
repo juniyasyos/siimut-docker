@@ -1,20 +1,27 @@
 services:
+  # ===== Web Server (Caddy) - Shared untuk semua project =====
   web:
     image: caddy:2-alpine
     container_name: siimut-web
     ports:
       - "8080:8080"
-      # - "443:443"   # aktifkan kalau mau TLS lokal (Caddy otomatis)
+      - "8081:8081"
+      - "8082:8082"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./site/siimut-application:/var/www/html
+      - ./site/siimut-application:/var/www/siimut
+      - ./site/laravel-iam:/var/www/iam
+      - ./site/client-iiam:/var/www/client
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - app
+      - app-siimut
+      - app-iam
+      - app-client
     restart: unless-stopped
 
-  app:
+  # ===== SI-IMUT Project =====
+  app-siimut:
     build:
       context: ./site/siimut-application
       dockerfile: ../../docker/php/Dockerfile  
@@ -23,8 +30,45 @@ services:
     user: root
     volumes:
       - ./site/siimut-application:/var/www/html
-      # Pisahkan vendor ke named volume agar tidak berada di bind mount Windows
-      - vendor_data:/var/www/html/vendor
+      - vendor_siimut:/var/www/html/vendor
+    env_file:
+      - .env.docker
+    environment:
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # ===== LARAVEL-IAM Project =====
+  app-iam:
+    build:
+      context: ./site/laravel-iam
+      dockerfile: ../../docker/php/Dockerfile  
+    container_name: iam-app
+    working_dir: /var/www/html
+    user: root
+    volumes:
+      - ./site/laravel-iam:/var/www/html
+      - vendor_iam:/var/www/html/vendor
+    env_file:
+      - .env.docker
+    environment:
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # ===== CLIENT-IIAM Project =====
+  app-client:
+    build:
+      context: ./site/client-iiam
+      dockerfile: ../../docker/php/Dockerfile  
+    container_name: client-app
+    working_dir: /var/www/html
+    user: root
+    volumes:
+      - ./site/client-iiam:/var/www/html
+      - vendor_client:/var/www/html/vendor
     env_file:
       - .env.docker
     environment:
@@ -33,17 +77,22 @@ services:
       - db
     restart: unless-stopped
   
+  # ===== Node (Shared untuk build assets) =====
   node:
     image: node:alpine
     container_name: siimut-node
-    working_dir: /var/www/html
+    working_dir: /var/www
     user: "1000:1000"
     volumes:
-      - ./site/siimut-application:/var/www/html
+      - ./site/siimut-application:/var/www/siimut
+      - ./site/laravel-iam:/var/www/iam
+      - ./site/client-iiam:/var/www/client
     command: tail -f /dev/null
     restart: unless-stopped
 
 volumes:
   caddy_data:
   caddy_config:
-  vendor_data:
+  vendor_siimut:
+  vendor_iam:
+  vendor_client:

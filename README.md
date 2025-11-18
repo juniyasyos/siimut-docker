@@ -1,33 +1,62 @@
-# Siimut Docker
+# Siimut Docker - Multi Project
 
-Stack Docker untuk menjalankan backend Laravel Siimut dengan Caddy dan Postgres.
+Stack Docker untuk menjalankan 3 aplikasi Laravel dengan Caddy dan Postgres.
+
+## Project yang Tersedia
+1. **SI-IMUT** - Port 8080 (Aplikasi utama)
+2. **Laravel-IAM** - Port 8081 (Identity & Access Management)
+3. **Client-IIAM** - Port 8082 (Client Application)
 
 ## Prasyarat
 - Docker Engine + `docker compose`
 - Git
 
-## Sekali Jalan (Disarankan)
-Jalankan script berikut dari root repo:
+## Setup Awal
 
+### 1. Clone/Setup Project Laravel-IAM
+```bash
+./scripts/clone_laravel_iam.sh
 ```
+
+### 2. Setup Project Client-IIAM
+```bash
+./scripts/setup_client_iiam.sh
+```
+Kemudian letakkan aplikasi Laravel Anda di `./site/client-iiam` atau buat project baru:
+```bash
+docker run --rm -v $(pwd)/site:/app composer create-project laravel/laravel client-iiam
+```
+
+### 3. Setup Project SI-IMUT (Sudah Ada)
+Jalankan script berikut dari root repo:
+```bash
 ./run.sh
 ```
 
-Apa yang dilakukan:
-- Clone/update backend ke `./site/siimut-application`
-- Membuat `.env.docker` jika belum ada (pakai default aman)
-- Menjalankan `docker compose up -d` dan inisialisasi Laravel (key, migrate, storage link)
+## Jalankan Semua Project
+Setelah semua project di-setup, jalankan:
+```bash
+docker-compose up -d
+```
 
-Opsi:
-- `./run.sh --rebuild` : rebuild image sebelum up
-- `./run.sh --fresh`   : hapus volumes (data DB) lalu up ulang
-
-Aplikasi akan tersedia di: http://localhost:8080
+Akses aplikasi di:
+- **SI-IMUT**: http://localhost:8080
+- **Laravel-IAM**: http://localhost:8081
+- **Client-IIAM**: http://localhost:8082
 
 ## Struktur Layanan
-- `web` (Caddy) — reverse proxy + static, listen port `8080`
-- `app` (PHP-FPM) — menjalankan Laravel
-- `db-postgress` (Postgres 16) — database
+
+### Shared Services
+- `web` (Caddy) — **1 instance** melayani semua project di port berbeda
+- `node` (Node) — **1 instance** untuk build assets semua project
+- `db-postgress` (Postgres 16) — database bersama
+
+### Application Containers
+- `app-siimut` (PHP-FPM) — Laravel SI-IMUT (Port 8080)
+- `app-iam` (PHP-FPM) — Laravel IAM (Port 8081)
+- `app-client` (PHP-FPM) — Client IIAM (Port 8082)
+
+**Total: 6 containers** (1 Caddy + 3 PHP-FPM + 1 Node + 1 Database)
 
 ## Variabel Lingkungan Compose
 Isi di file `.env.docker` (dibaca oleh `docker-compose.yml`):
@@ -37,18 +66,86 @@ Isi di file `.env.docker` (dibaca oleh `docker-compose.yml`):
 Contoh: lihat `.env.docker.example`.
 
 ## Perintah Umum
-- Start: `docker compose up -d`
-- Stop: `docker compose down`
-- Logs: `docker compose logs -f`
-- Masuk app: `docker compose exec app bash`
+
+### Manajemen Container
+```bash
+# Start semua services
+docker-compose up -d
+
+# Stop semua services
+docker-compose down
+
+# Lihat logs semua services
+docker-compose logs -f
+
+# Lihat logs service tertentu
+docker-compose logs -f app-siimut
+docker-compose logs -f app-iam
+docker-compose logs -f app-client
+```
+
+### Masuk ke Container
+```bash
+# Masuk ke container SI-IMUT
+docker exec -it siimut-app bash
+
+# Masuk ke container Laravel-IAM
+docker exec -it iam-app bash
+
+# Masuk ke container Client-IIAM
+docker exec -it client-app bash
+```
+
+### Perintah Laravel per Project
+```bash
+# SI-IMUT
+docker exec -it siimut-app php artisan migrate
+docker exec -it siimut-app php artisan key:generate
+
+# Laravel-IAM
+docker exec -it iam-app php artisan migrate
+docker exec -it iam-app php artisan key:generate
+
+# Client-IIAM
+docker exec -it client-app php artisan migrate
+docker exec -it client-app php artisan key:generate
+```
+
+### Build Assets dengan Node (Shared Container)
+```bash
+# Masuk ke container node
+docker exec -it siimut-node sh
+
+# Build SI-IMUT
+cd /var/www/siimut
+npm install && npm run build
+
+# Build Laravel-IAM
+cd /var/www/iam
+npm install && npm run build
+
+# Build Client-IIAM
+cd /var/www/client
+npm install && npm run build
+```
 
 ## Catatan
-- Volume kode: `./site/siimut-application:/var/www/html`
-- Build context `app`: `./site/siimut-application` memakai `docker/php/Dockerfile`
+- Volume kode:
+  - SI-IMUT: `./site/siimut-application:/var/www/html`
+  - Laravel-IAM: `./site/laravel-iam:/var/www/html`
+  - Client-IIAM: `./site/client-iiam:/var/www/html`
+- Setiap project memiliki vendor volume terpisah untuk menghindari konflik
+- Build context memakai `docker/php/Dockerfile` yang sama untuk semua project
 - DB service name: `db-postgress` (container: `siimut-db-postgress`)
-- Caddy melayani dokumen root `public/` dan meneruskan PHP ke `app:9000`
+- Setiap project memiliki Caddy instance terpisah dengan port berbeda
 
 ## Troubleshooting Cepat
-- Port 8080 dipakai: ubah mapping port di `docker-compose.yml`
-- Migrasi gagal saat awal: jalankan `docker compose exec -T app php artisan migrate --force`
-- Bersih total: `./run.sh --fresh`
+- Port sudah dipakai: ubah mapping port di `docker-compose.yml`
+- Migrasi gagal saat awal: jalankan `docker exec -it <container-name> php artisan migrate --force`
+- Rebuild image tertentu: `docker-compose build <service-name>`
+- Rebuild semua: `docker-compose build --no-cache`
+- Bersih total: `docker-compose down -v` (hapus volumes)
+
+## Opsi run.sh (Untuk SI-IMUT)
+- `./run.sh --rebuild` : rebuild image sebelum up
+- `./run.sh --fresh`   : hapus volumes (data DB) lalu up ulang
