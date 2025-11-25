@@ -408,8 +408,8 @@ setup_laravel_project() {
   echo "  - Membersihkan cache…"
   run_or_fail "Menghapus file cache untuk $proj" \
     dc exec -T "$service" sh -lc 'rm -f bootstrap/cache/config.php bootstrap/cache/services.php'
-  run_or_fail "php artisan optimize:clear untuk $proj" \
-    dc exec -T "$service" sh -lc 'CACHE_DRIVER=file php artisan optimize:clear'
+  run_or_fail "php artisan cache:clear untuk $proj" \
+    dc exec -T "$service" sh -lc 'CACHE_DRIVER=file php artisan cache:clear'
   
   run_or_fail "php artisan migrate untuk $proj" \
     dc exec -T "$service" php artisan migrate --force
