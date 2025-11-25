@@ -403,13 +403,6 @@ setup_laravel_project() {
   run_or_fail "php artisan key:generate untuk $proj" \
     dc exec -T "$service" php artisan key:generate --force
   dc exec -T "$service" php -r 'if(!preg_match("/^APP_KEY=.+$/m", file_get_contents(".env"))){$k="base64:".base64_encode(random_bytes(32)); $e=file_get_contents(".env"); if(preg_match("/^APP_KEY=.*$/m",$e)){$e=preg_replace("/^APP_KEY=.*$/m","APP_KEY=".$k,$e);}else{$e.="\nAPP_KEY=".$k."\n";} file_put_contents(".env",$e);}'
-
-  # Bersih cache config
-  echo "  - Membersihkan cache…"
-  run_or_fail "Menghapus file cache untuk $proj" \
-    dc exec -T "$service" sh -lc 'rm -f bootstrap/cache/config.php bootstrap/cache/services.php'
-  run_or_fail "php artisan cache:clear untuk $proj" \
-    dc exec -T "$service" sh -lc 'CACHE_DRIVER=file php artisan cache:clear'
   
   run_or_fail "php artisan migrate untuk $proj" \
     dc exec -T "$service" php artisan migrate --force
