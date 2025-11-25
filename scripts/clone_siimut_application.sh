@@ -25,10 +25,10 @@ SSH_URL="git@github.com:${REPO_PATH}.git"
 TARGET_PARENT="${HOME}/siimut-docker/site"
 REPO_NAME="siimut-application"
 # Leave BRANCH empty to use the repo default branch (safer)
-BRANCH="feat-daily-report"
+BRANCH="iam-integration"
 SHALLOW=false
 USE_SSH=false
-HARD_UPDATE=false
+HARD_UPDATE=true
 
 usage() {
   cat <<EOF
