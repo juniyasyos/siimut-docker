@@ -374,7 +374,7 @@ setup_laravel_project() {
       dc exec -T "$service" /bin/sh -lc 'set -e; export COMPOSER_CACHE_DIR=/tmp/composer-cache COMPOSER_HOME=/tmp/composer-home COMPOSER_TMP_DIR=/tmp; rm -rf ./bootstrap/cache/*'
     echo "  - composer install…"
     run_or_fail "Composer install untuk $proj" \
-      dc exec -T "$service" /bin/sh -lc 'set -e; export COMPOSER_CACHE_DIR=/tmp/composer-cache COMPOSER_HOME=/tmp/composer-home COMPOSER_TMP_DIR=/tmp; composer install --prefer-dist --no-interaction --no-progress'
+      dc exec -T "$service" /bin/sh -lc 'set -e; export COMPOSER_CACHE_DIR=/tmp/composer-cache COMPOSER_HOME=/tmp/composer-home COMPOSER_TMP_DIR=/tmp; composer install'
   fi
 
   # Pastikan .env ada

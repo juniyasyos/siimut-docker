@@ -5,8 +5,8 @@ FROM php:8.4-fpm-alpine AS base
 
 ARG UID=1000
 ARG GID=1000
-ARG APP_ENV=production          # production|local
-ARG ENABLE_XDEBUG=false         # true|false
+ARG APP_ENV=local          # production|local
+ARG ENABLE_XDEBUG=true         # true|false
 ARG TZ=Asia/Jakarta
 
 RUN apk add --no-cache \
